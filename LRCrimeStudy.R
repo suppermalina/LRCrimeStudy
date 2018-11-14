@@ -1,4 +1,4 @@
-setwd("/Users/mali/Desktop/special_topics/course\ project/")
+setwd("/Users/mali/Documents/myGit/LRCrimeStudy")
 
 # This script aims to study the crimes happened in LR.
 # Data are downloaded from the police department of LR. 
@@ -95,22 +95,24 @@ head(incidents)
 #First, we hope to have a big picture of the crimes happened in the time range. Especially, 
 #we want to see the 20 of crime that has been recorded with a bar chart and a pie chart
 
-topTwenty <- as.data.frame(incidents %>%
+incidentsSummary <- as.data.frame(incidents %>%
                           group_by(OFFENSE_DESCRIPTION) %>%
                           summarize(offense_amount = n()) %>%
-                          distinct() %>%
-                          top_n(20))
+                          distinct())
+attach(incidentsSummary)
+topTwenty <- incidentsSummary[order(offense_amount, decreasing = TRUE), ] %>%
+  top_n(20)
+
 colnames(topTwenty) <- c("offense_description", "offense_amount")
 #The following codes are for the bar chart
-newTopTwenty <- topTwenty[order(topTwenty$offense_amount, decreasing = TRUE), ]
 
-p_twenty <- ggplot(newTopTwenty, aes(x = newTopTwenty$offense_description, y = newTopTwenty$offense_amount))
+p_twenty <- ggplot(topTwenty, aes(x = topTwenty$offense_description, y = topTwenty$offense_amount))
 p_twenty + geom_bar(stat = "identity", width = 0.8, fill = "red") +
   coord_flip() + 
   labs(title = "TOP TEN", x = "OFFENSE_DESCRIPTION", y = "OFFENSE_AMOUNT")
 
-#The following codes are fot the pie chart
-pie_twenty <- ggplot(newTopTwenty, aes(x = "", y = newTopTwenty$offense_amount, fill = factor(newTopTwenty$offense_description)))
+#The following codes aim to plot out the pie chart
+pie_twenty <- ggplot(topTwenty, aes(x = "", y = topTwenty$offense_amount, fill = factor(topTwenty$offense_description)))
 pie_twenty + geom_bar(width = 1, stat = "identity") + 
   theme(axis.line = element_blank(), plot.title = element_text(hjust = 0.5)) + 
   labs(fill = "OFFENSE_DESCRIPTION", x = NULL, y = NULL, title = "PIE OF TOP20",
@@ -125,17 +127,19 @@ col2 = "#540404"
 
 weekdayHour <- ddply(incidents, c("hour", "wday"), summarise, N = length(ymd))
 weekdayHour$wday <- factor(weekdayHour$wday, levels=rev(levels(weekdayHour$wday)))
-attach(weekdayHour)
 
 #creating the heatmap
 ggplot(weekdayHour, aes(hour, wday)) + geom_tile(aes(fill = N),colour = "white", na.rm = TRUE) +
   scale_fill_gradient(low = col1, high = col2) +  
   guides(fill=guide_legend(title="Total Incidents")) +
   theme_bw() + theme_minimal() + 
-  labs(title = "Heatmap of LR crimes by Day of Week and Hour",
+  labs(title = "Heatmap of LR crimes by Hour of a day",
        x = "Hour", y = "Day of Week") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
+# Then, we hope to see the distribution of crimes by day of a week"
+dayWeek <- ddply(incidents, c("wday", "week"), summarise, D = length(incidents$wday))
+str(weekdayHour$wday)
 
 #First, analysis the relation between crimes amount with time range in each month
 #In this part, the variable monthHour is used to store the summary table with two columns hour
