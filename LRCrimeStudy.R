@@ -30,19 +30,20 @@ install.packages("lubridate")
 
 #A fast, consistent tool for working with data frame like objects, both in memory and out of memory.
 install.packages("dplyr")
-
-#Automatically Position Non-Overlapping Text Labels with
-'ggplot2'
-install.packages("ggrepel")
 install.packages("ggplot2")
-
+install.packages("ggrepel")
+install.packages("Scale")
+install.packages("leaflet")
+install.packages("maps")
 #Loading the packages
 library(plyr)
 library(lubridate)
-library(ggplot2)
 library(dplyr)
 library(ggrepel)
-
+library(Scale)
+library(leaflet)
+library(ggplot2)
+library(maps)
 #Loading data
 #Data set can be found on this webpage:
 #https://data.littlerock.gov/Safe-City/Little-Rock-Police-Department-Statistics-2017-to-Y/bz82-34ep
@@ -92,35 +93,34 @@ incidents$hour <- hour(incidents$ymd)
 attach(incidents)
 head(incidents)
 
-#First, we hope to have a big picture of the crimes happened in the time range. Especially, 
-#we want to see the 20 of crime that has been recorded with a bar chart and a pie chart
+#First, we hope to have a big picture of the crimes happened in the time range, more accurate,
+#we want to see which types of crimes commited the most
+#Thus, we will show the total count of each typ of crime with a barplot
 
 incidentsSummary <- as.data.frame(incidents %>%
-                          group_by(OFFENSE_DESCRIPTION) %>%
-                          summarize(offense_amount = n()) %>%
-                          distinct())
+                                    group_by(OFFENSE_DESCRIPTION) %>%
+                                    summarise(offense_amount = n()) %>%
+                                    distinct())
 attach(incidentsSummary)
-topTwenty <- incidentsSummary[order(offense_amount, decreasing = TRUE), ] %>%
-  top_n(20)
-
-colnames(topTwenty) <- c("offense_description", "offense_amount")
+colnames(incidentsSummary) <- c("offense_description", "offense_amount")
 #The following codes are for the bar chart
 
-p_twenty <- ggplot(topTwenty, aes(x = topTwenty$offense_description, y = topTwenty$offense_amount))
-p_twenty + geom_bar(stat = "identity", width = 0.8, fill = "red") +
+p <- ggplot(incidentsSummary, aes(x = reorder(incidentsSummary$offense_description, desc(incidentsSummary$offense_amount)), 
+                                  y = incidentsSummary$offense_amount))
+p + geom_bar(stat = "identity", width = 0.8, fill = "red") +
   coord_flip() + 
-  labs(title = "TOP TEN", x = "OFFENSE_DESCRIPTION", y = "OFFENSE_AMOUNT")
+  labs(title = "CATAGORIED CRIME COUNT", x = "OFFENSE_DESCRIPTION", y = "OFFENSE_AMOUNT")
 
 #The following codes aim to plot out the pie chart
-pie_twenty <- ggplot(topTwenty, aes(x = "", y = topTwenty$offense_amount, fill = factor(topTwenty$offense_description)))
-pie_twenty + geom_bar(width = 1, stat = "identity") + 
+pie <- ggplot(incidentsSummary, aes(x = "", y = incidentsSummary$offense_amount, fill = factor(incidentsSummary$offense_description)))
+pie + geom_bar(width = 1, stat = "identity") + 
   theme(axis.line = element_blank(), plot.title = element_text(hjust = 0.5)) + 
   labs(fill = "OFFENSE_DESCRIPTION", x = NULL, y = NULL, title = "PIE OF TOP20",
        caption = "Source:OFFENSE_DESCRIPTION") + 
   coord_polar(theta = "y", start = 0)
 
 #Second, we hope to figuer out how the crimes distribute in each weekday, from 0:00 to 23:59
-#For, this part, we will use a heatmap to show the relation
+#For, this part, we will use a heatmap to show the relation. And, we will use all crime records
 #setting colors
 col1 = "#FEFEFE" 
 col2 = "#540404"
@@ -137,15 +137,36 @@ ggplot(weekdayHour, aes(hour, wday)) + geom_tile(aes(fill = N),colour = "white",
        x = "Hour", y = "Day of Week") +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
-# Then, we hope to see the distribution of crimes by day of a week"
-dayWeek <- ddply(incidents, c("wday", "week"), summarise, D = length(incidents$wday))
-str(weekdayHour$wday)
-
-#First, analysis the relation between crimes amount with time range in each month
-#In this part, the variable monthHour is used to store the summary table with two columns hour
-#and month
-#ddply is implmented in this section of code. ddply came with the package plyr
-#ddply(data.frame, variable(s), function, optional arguments)
-monthHour <- ddply(incidents, c("hour", "month"), summarize, N = length(incidents$INCIDENT_DATE))
-
-
+# Then, we hope to see the distribution of specific crimes in a week
+crimesDay <- aggregate(incidents$OFFENSE_DESCRIPTION,
+                       by = list(incidents$OFFENSE_DESCRIPTION, incidents$wday), FUN = length)
+names(crimesDay) <- c("crimeDescription", "weekday", "count")
+crimesDay$weekday <- factor(crimesDay$weekday, levels = rev(levels(crimesDay$weekday)))
+teplist <- NULL
+for (i in unlist(crimesDay$count)) {
+  teplist <- c(teplist, i)
+}
+crimesDay <- crimesDay[order(crimesDay$count, decreasing = TRUE), ]
+ggplot(crimesDay, aes(crimeDescription, weekday)) + geom_tile(aes(fill = count),colour = "white", na.rm = TRUE) +
+  scale_fill_gradient(low = col1, high = col2) +  
+  guides(fill=guide_legend(title="Total Incidents")) +
+  theme_bw() + theme_minimal() + 
+  labs(title = "Heatmap of LR crime distribution per week",
+       x = "Crime description", y = "Day of Week") +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        axis.text.x = element_text(angle = 90, vjust = 0.5))
+  
+#Third, science the coordinations of all locations where incidents commited, we want to see
+#them being marked on the map
+install.packages("RJSONIO")
+library(RJSONIO)
+json_file <- fromJSON("CITY_LIMITS_AHTD.json")
+json_file <- lapply(json_file, function(x) {
+  x[sapply(x, is.null)] <- NA
+  unlist(x)
+})
+df<-as.data.frame(do.call("cbind", json_file))
+ggplot() +
+  geom_polygon(data = df, aes( x = long, y = lat, group = group)) +
+  theme_void() +
+  coord_map()
