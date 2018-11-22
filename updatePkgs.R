@@ -1,0 +1,12 @@
+#A set of tools that solves a common set of problems: you
+#need to break a big problem down into manageable pieces, 
+#operate on each piece and then put all the pieces back together. 
+#For example, you might want to fit a model to each spatial location or time point in your study, 
+#summarise data by panels or collapse high-dimensional arrays to simpler summary statistics. 
+#The development of 'plyr' has been generously supported by 'Becton Dickinson'.
+update.packages("plyr")
+
+#A fast, consistent tool for working with data frame like objects, both in memory and out of memory.
+update.packages("dplyr")
+update.packages("ggplot2")
+update.packages("forcats")
