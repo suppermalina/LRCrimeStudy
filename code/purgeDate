@@ -1,0 +1,8 @@
+#!/bin/bash
+
+INFO=$(sed -n 5p Little_Rock_Police_Department_Statistics_2017_to_Year_to_Date_2018.csv)
+echo $INFO
+
+eCollection=( $(cut -d ',' -f2 Little_Rock_Police_Department_Statistics_2017_to_Year_to_Date_2018.csv) )
+printf "%s\n" "${eCollection[0]}"
+
