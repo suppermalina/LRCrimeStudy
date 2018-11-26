@@ -208,13 +208,30 @@ daily_temp$dailyAvg <- (daily_temp$dailyMax + daily_temp$dailyMin) / 2
 colnames(daily_temp) <- c("date", "min", "max", "avg")
 #aggregate the past years daily total crime count, and merge with daily_temp
 head(total_incidents)
-daily_total_crimes <- data.frame(total_incidents$incidents_ymd, total_incidents$incidents_Number)
+daily_total_crimes <- data.frame(total_incidents$incidents_ymd, total_incidents$incidents_Number, stringsAsFactors = FALSE)
 daily_total_crimes <- aggregate(daily_total_crimes$total_incidents.incidents_Number, by = list(daily_total_crimes$total_incidents.incidents_ymd), FUN = length)
 colnames(daily_total_crimes) <- c("date", "daily_total")
-head(daily_total_crimes)
-head(daily_temp)
-str(daily_total_crimes$date[1])
-daily_total_crimes$key <- data.frame(levels(daily_total_crimes$date), stringsAsFactors = FALSE)
-class(daily_temp$date[1])
+#as.Date.character(daily_temp$date[1]) == as.Date.character(daily_total_crimes$date[1])
+daily_total_crimes$date <- as.Date.character(daily_total_crimes$date)
+daily_temp$date <- as.Date.character(daily_temp$date)
+
+#merging daily_total_crimes and daily_temp by date
+combination_information <- merge(daily_total_crimes, daily_temp, by = "date")
+combination_information$year <- year(combination_information$date)
+combination_information$month <- month(combination_information$date)
+
+#separating the datas set into four sets based on years
+combination_infor_2015 <- combination_information[combination_information$year == 2015, ]
+combination_infor_2016 <- combination_information[combination_information$year == 2016, ]
+combination_infor_2017 <- combination_information[combination_information$year == 2017, ]
+combination_infor_2018 <- combination_information[combination_information$year == 2018, ]
+
+#plot out this data set. let the date be the x axis
+sp_2015<-ggplot(combination_infor_2015, aes(x = date, y = daily_total, color = avg)) + 
+  geom_point(aes(size = daily_total)) + 
+  facet_grid(date~month, scales = "free", space = "free_x")
+
+
+
 
 
