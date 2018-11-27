@@ -6,6 +6,9 @@ library(lubridate)
 library(dplyr)
 library(ggplot2)
 library (psych)
+library(reshape2)
+library(Hmisc)
+library(corrplot)
 #Loading data
 # This script aims to study the crimes happened in LR.
 # Data are downloaded from the police department of LR. 
@@ -204,7 +207,7 @@ daily_temp <- read.table("/Users/mali/Documents/myGit/LRCrimeStudy/data/purged_d
                          head=TRUE, sep=",", fill=TRUE, stringsAsFactors=F)
 daily_temp$X <- NULL
 daily_temp$dailyAvg <- (daily_temp$dailyMax + daily_temp$dailyMin) / 2
-colnames(daily_temp) <- c("date", "min", "max", "avg")
+colnames(daily_temp) <- c("date", "min_temp", "max_temp", "daily_avg_temp")
 #aggregate the past years daily total crime count, and merge with daily_temp
 head(total_incidents)
 daily_total_crimes <- data.frame(total_incidents$incidents_ymd, total_incidents$incidents_Number, stringsAsFactors = FALSE)
@@ -218,46 +221,101 @@ daily_temp$date <- as.Date.character(daily_temp$date)
 combination_information <- merge(daily_total_crimes, daily_temp, by = "date")
 combination_information$year <- year(combination_information$date)
 combination_information$month <- month(combination_information$date)
+
+total_incidents <- total_incidents[!is.na(total_incidents$incidents_Lat), ]
+total_incidents <- total_incidents[!is.na(total_incidents$incidents_Lon), ]
 tail(total_incidents)
+head(total_incidents)
 #separating the datas set into four sets based on years
 combination_infor_2015 <- combination_information[combination_information$year == 2015, ]
 combination_infor_2016 <- combination_information[combination_information$year == 2016, ]
 combination_infor_2017 <- combination_information[combination_information$year == 2017, ]
 combination_infor_2018 <- combination_information[combination_information$year == 2018, ]
-
-for (indicator in 1 : length(combination_infor_2017$date)) {
-  i = indicator + 1
-  while (i <= length((combination_infor_2017$date)) & ((combination_infor_2017$date)[i] == (combination_infor_2017$date)[indicator])) {
-    combination_infor_2017 <- combination_infor_2017[-i, ]
-    i = i + 1
-  }
-  indicator = i
-}
-
-for (indicator in 1 : length(combination_infor_2018$date)) {
-  i = indicator + 1
-  while (i <= length((combination_infor_2018$date)) & ((combination_infor_2018$date)[i] == (combination_infor_2018$date)[indicator])) {
-    combination_infor_2018 <- combination_infor_2018[-i, ]
-    i = i + 1
-  }
-  indicator = i
-}
-
 #plot out this data set. let the date be the x axis
-sp_2015<-ggplot(combination_infor_2015, aes(x = date, y = daily_total, color = avg)) + 
-  geom_point(aes(size = daily_total)) + 
-  facet_wrap(~month, ncol = 4, scales = "free")
+mid_2015 <- median(combination_infor_2015$daily_total)
+sp_2015<-ggplot(combination_infor_2015, aes(x = date, y = daily_avg_temp)) + 
+  #geom_point(aes(color = daily_total)) + 
+  #scale_color_gradient2(midpoint = mid_2015, low = 'blue', mid = "grey", high = "black", space = "Lab") + 
+  geom_line(aes(y = min_temp), color = "#0fbf27") + 
+  #, color = "#0fbf27"
+  geom_line(aes(y = daily_avg_temp), color = "#bfbc0f") + 
+  #, color = "#bfbc0f"
+  geom_line(aes(y = max_temp), color = "#bf1111") + 
+  #, color = "#bf1111
+  geom_line(aes(y = daily_total), color = "#4256f4") + 
+  #, color = "#4256f4"
+  ggtitle("Relation between the amount of daily crimes and daily average temparature of 2015") + 
+  xlab("Date") + ylab("Daily average temparature")
+  #scale_color_manual(values = c("#0fbf27", "#bfbc0f", "#bf1111", "#4256f4")) + 
+  sp_2015 + facet_wrap(~month, ncol = 4, scales = "free") 
+sp_2015
 
-sp_2016<-ggplot(combination_infor_2016, aes(x = date, y = daily_total, color = avg)) + 
-  geom_point(aes(size = daily_total)) + 
-  facet_wrap(~month, ncol = 4, scales = "free")
+mid_2016 <- median(combination_infor_2016$daily_total)
+sp_2016<-ggplot(combination_infor_2016, aes(x = date, y = daily_avg_temp)) + 
+  #geom_point(aes(color = daily_total)) + 
+  #scale_color_gradient2(midpoint = mid_2015, low = 'blue', mid = "grey", high = "black", space = "Lab") + 
+  geom_line(aes(y = min_temp), color = "#0fbf27") + 
+  geom_line(aes(y = daily_avg_temp), color = "#bfbc0f") + 
+  geom_line(aes(y = max_temp), color = "#bf1111") + 
+  geom_line(aes(y = daily_total)) + 
+  ggtitle("Relation between the amount of daily crimes and daily average temparature of 2016") + 
+  xlab("Date") + ylab("Daily average temparature") 
+sp_2016 + facet_wrap(~month, ncol = 4, scales = "free") 
+sp_2016
 
-sp_2017<-ggplot(combination_infor_2017, aes(x = date, y = daily_total, color = avg)) + 
-  geom_point(aes(size = daily_total)) + 
-  facet_wrap(~month, ncol = 4, scales = "free")
+mid_2017 <- median(combination_infor_2017$daily_total)
+sp_2017<-ggplot(combination_infor_2017, aes(x = date, y = daily_avg_temp)) + 
+  #geom_point(aes(color = daily_total)) + 
+  #scale_color_gradient2(midpoint = mid_2015, low = 'blue', mid = "grey", high = "black", space = "Lab") + 
+  geom_line(aes(y = min_temp), color = "#0fbf27") + 
+  geom_line(aes(y = daily_avg_temp), color = "#bfbc0f") + 
+  geom_line(aes(y = max_temp), color = "#bf1111") + 
+  geom_line(aes(y = daily_total)) + 
+  ggtitle("Relation between the amount of daily crimes and daily average temparature of 2017") + 
+  xlab("Date") + ylab("Daily average temparature") 
+sp_2017 + facet_wrap(~month, ncol = 4, scales = "free") 
+sp_2017
 
-sp_2018<-ggplot(combination_infor_2018, aes(x = date, y = daily_total, color = avg)) + 
-  geom_point(aes(size = daily_total)) + 
-  facet_wrap(~month, ncol = 4, scales = "free")
+mid_2018 <- median(combination_infor_2018$daily_total)
+sp_2018<-ggplot(combination_infor_2018, aes(x = date, y = daily_avg_temp)) + 
+  #geom_point(aes(color = daily_total)) + 
+  #scale_color_gradient2(midpoint = mid_2015, low = 'blue', mid = "grey", high = "black", space = "Lab") + 
+  geom_line(aes(y = min_temp), color = "#0fbf27") + 
+  geom_line(aes(y = daily_avg_temp), color = "#bfbc0f") + 
+  geom_line(aes(y = max_temp), color = "#bf1111") + 
+  geom_line(aes(y = daily_total)) + 
+  ggtitle("Relation between the amount of daily crimes and daily average temparature of 2018") + 
+  xlab("Date") + ylab("Daily average temparature") 
+sp_2018 + facet_wrap(~month, ncol = 4, scales = "free") 
+sp_2018
+
+#######################
+#######################
+#correlation analysis
+corrplot.mixed(cor(combination_infor_2015[, -c(1, 6, 7)]), order="hclust", tl.col="black")
+corrplot.mixed(cor(combination_infor_2016[, -c(1, 6, 7)]), order="hclust", tl.col="black")
+corrplot.mixed(cor(combination_infor_2016[, -c(1, 6, 7)]), order="hclust", tl.col="black")
+corrplot.mixed(cor(combination_infor_2016[, -c(1, 6, 7)]), order="hclust", tl.col="black")
+
+corrplot.mixed(cor(combination_information[, -c(1, 6, 7)]), order="hclust", tl.col="black")
+
+######################
+daily_geom_crime <- data.frame(cbind(total_incidents$incidents_ymd, total_incidents$year, total_incidents$incidents_month, 
+                                     total_incidents$incidents_Lon, total_incidents$incidents_Lat, total_incidents$incidents_District, 
+                                     total_incidents$incidents_Number), stringsAsFactors = FALSE)
+names(daily_geom_crime) <- c("ymd", "year", "month", "lon", "lat", "district", "number")
+#make lon and lot more comparable
+#x = cos(lat) * cos(lon)
+#y = cos(lat) * sin(lon)
+daily_geom_crime$x <- cos(as.numeric(daily_geom_crime$lat)) * cos(as.numeric(daily_geom_crime$lon))
+daily_geom_crime$y <- cos(as.numeric(daily_geom_crime$lat)) * sin(as.numeric(daily_geom_crime$lon))
+daily_geom_crime$point <- sqrt(as.numeric(daily_geom_crime$x) ^ 2 + as.numeric(daily_geom_crime$y) ^ 2)
+daily_geom_crime <- aggregate(daily_geom_crime$number, by = list(daily_geom_crime$ymd, daily_geom_crime$district,
+                                                                 daily_geom_crime$point), FUN = length)
+names(daily_geom_crime) <- c("date", "district", "point", "count")
+daily_geom_crime$date <- as.Date(daily_geom_crime$date)
+daily_geom_crime_climate <- merge(daily_geom_crime, daily_temp, by = "date")
+
+
 
 
