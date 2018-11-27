@@ -39,7 +39,7 @@ incidents$hour <- hour(incidents$ymd)
 
 
 #This dataframe contains all crime records from 2015-2018
-total_incidents <- read.table("/Users/mali/Documents/myGit/LRCrimeStudy/data/Crime_records_Of_LR_2015-2018.csv", head=TRUE, sep=",", fill=TRUE, stringsAsFactors=F)
+total_incidents <- read.table("/Users/mali/Documents/myGit/LRCrimeStudy/data/Crime_records_Of_LR_2015-2018_v3.csv", head=TRUE, sep=",", fill=TRUE, stringsAsFactors=F)
 
 #First, we hope to have a big picture of the crimes happened in the time range, more accurate,
 #we want to see which types of crimes commited the most
@@ -175,9 +175,7 @@ ggplot(month_all, aes(x = Month, y = `Total amount`), colo) +
 
 #Do this to four years separately
 #total_incidents$year <- year(total_incidents$incidents_ymd)
-#total_incidents$incidents_month <- factor(total_incidents$incidents_month, levels = c("JAN", "FEB", "MAR", "APR", 
-#                                                                      "MAY", "JUN", "JUL", "AUG", 
-#                                                                      "SEP", "OCT", "NOV", "DEC"))
+total_incidents$incidents_month <- factor(total_incidents$incidents_month, levels = c("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"))
 
 #factor(total_incidents$year)
 separated_by_year <- data.frame(cbind(total_incidents$incidents_month, total_incidents$incidents_Description, 
@@ -186,7 +184,8 @@ head(separated_by_year)
 names(separated_by_year) <- c("Month", "Description", "Year")
 separated_by_year <- aggregate(separated_by_year$Description, by = list(separated_by_year$Month, separated_by_year$Year), FUN = length)
 names(separated_by_year) <- c("Month", "Year", "Amount")
-
+separated_by_year$Month <- factor(separated_by_year$Month, levels = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), 
+                                  labels = c("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC") )
 ggplot(separated_by_year, aes(x = Month, y = Amount)) + 
   geom_bar(stat = "identity", width = 0.8, fill = "red") + 
   facet_wrap(~Year)
@@ -219,19 +218,46 @@ daily_temp$date <- as.Date.character(daily_temp$date)
 combination_information <- merge(daily_total_crimes, daily_temp, by = "date")
 combination_information$year <- year(combination_information$date)
 combination_information$month <- month(combination_information$date)
-
+tail(total_incidents)
 #separating the datas set into four sets based on years
 combination_infor_2015 <- combination_information[combination_information$year == 2015, ]
 combination_infor_2016 <- combination_information[combination_information$year == 2016, ]
 combination_infor_2017 <- combination_information[combination_information$year == 2017, ]
 combination_infor_2018 <- combination_information[combination_information$year == 2018, ]
 
+for (indicator in 1 : length(combination_infor_2017$date)) {
+  i = indicator + 1
+  while (i <= length((combination_infor_2017$date)) & ((combination_infor_2017$date)[i] == (combination_infor_2017$date)[indicator])) {
+    combination_infor_2017 <- combination_infor_2017[-i, ]
+    i = i + 1
+  }
+  indicator = i
+}
+
+for (indicator in 1 : length(combination_infor_2018$date)) {
+  i = indicator + 1
+  while (i <= length((combination_infor_2018$date)) & ((combination_infor_2018$date)[i] == (combination_infor_2018$date)[indicator])) {
+    combination_infor_2018 <- combination_infor_2018[-i, ]
+    i = i + 1
+  }
+  indicator = i
+}
+
 #plot out this data set. let the date be the x axis
 sp_2015<-ggplot(combination_infor_2015, aes(x = date, y = daily_total, color = avg)) + 
   geom_point(aes(size = daily_total)) + 
-  facet_grid(date~month, scales = "free", space = "free_x")
+  facet_wrap(~month, ncol = 4, scales = "free")
 
+sp_2016<-ggplot(combination_infor_2016, aes(x = date, y = daily_total, color = avg)) + 
+  geom_point(aes(size = daily_total)) + 
+  facet_wrap(~month, ncol = 4, scales = "free")
 
+sp_2017<-ggplot(combination_infor_2017, aes(x = date, y = daily_total, color = avg)) + 
+  geom_point(aes(size = daily_total)) + 
+  facet_wrap(~month, ncol = 4, scales = "free")
 
+sp_2018<-ggplot(combination_infor_2018, aes(x = date, y = daily_total, color = avg)) + 
+  geom_point(aes(size = daily_total)) + 
+  facet_wrap(~month, ncol = 4, scales = "free")
 
 

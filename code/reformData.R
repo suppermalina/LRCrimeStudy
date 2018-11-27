@@ -63,10 +63,12 @@ for (i in 1 : length(tmp_2017_2018$ymd)) {
     print(tmp_2017_2018$ymd[i])
   }
 }
+
 tmp_2017 <- tmp_2017_2018[tmp_2017_2018$year == "2017", ]
 tmp_2018 <- tmp_2017_2018[tmp_2017_2018$year == "2018", ]
-write.csv(tmp_2017, "/Users/mali/Documents/myGit/LRCrimeStudy/data/Little_Rock_Police_Department_Statistics_2017.csv")
-write.csv(tmp_2018, "/Users/mali/Documents/myGit/LRCrimeStudy/data/Little_Rock_Police_Department_Statistics_2018.csv")
+
+#write.csv(tmp_2017, "/Users/mali/Documents/myGit/LRCrimeStudy/data/Little_Rock_Police_Department_Statistics_2017.csv")
+#write.csv(tmp_2018, "/Users/mali/Documents/myGit/LRCrimeStudy/data/Little_Rock_Police_Department_Statistics_2018.csv")
 
 #########################################################
 #########################################################
@@ -222,29 +224,35 @@ colnames(tmp_2016) <- c("INCIDENT_NUMBER", "LOCATION_DISTRICT",
 
 ########################
 ########################
+data_2015 <-  read.table("/Users/mali/Documents/myGit/LRCrimeStudy/data/purged_crime_data_for_2015.csv", 
+                         head=TRUE, sep=",", fill=TRUE, stringsAsFactors=F)
+data_2016 <-  read.table("/Users/mali/Documents/myGit/LRCrimeStudy/data/purged_crime_data_for_2016.csv", 
+                         head=TRUE, sep=",", fill=TRUE, stringsAsFactors=F)
+data_2017 <- tmp_2017
+data_2018 <- tmp_2018
 incidents_ymd <- data.frame(c(data_2015$ymd, data_2016$ymd, data_2017$ymd, data_2018$ymd))
 
 incidents_month <- data.frame(c(data_2015$month, data_2016$month, data_2017$month, data_2018$month))
 incidents_wdays <- data.frame(c(data_2015$wday, data_2016$wday, data_2017$wday, data_2018$wday))
 incidents_Description <- data.frame(c(data_2015$OFFENS_DESCRIPTION, data_2016$OFFENS_DESCRIPTION, 
-                                      data_2017$OFFENSE_DESCRIPTION, data_2018$OFFENSE_DESCRIPTION))
+                                      data_2017$OFFENSE_DESCRIPTION, data_2018$OFFENSE_DESCRIPTION), stringsAsFactors = FALSE)
 incidents_District <- data.frame(c(data_2015$LOCATION_DISTRICT, data_2016$LOCATION_DISTRICT, 
-                                   data_2017$LOCATION_DISTRICT, data_2018$LOCATION_DISTRICT))
+                                   data_2017$LOCATION_DISTRICT, data_2018$LOCATION_DISTRICT), stringsAsFactors = FALSE)
 incidents_Address <- data.frame(c(data_2015$LOCATION_ADDRESS, data_2016$LOCATION_ADDRESS, 
-                                  data_2017$LOCATION_ADDRESS, data_2018$LOCATION_ADDRESS))
-incidents_City <- data.frame(c(data_2015$CITY, data_2016$CITY, data_2017$CITY, data_2018$CITY))
-incidents_State <- data.frame(c(data_2015$STATE, data_2016$STATE, data_2017$STATE, data_2018$STATE))
+                                  data_2017$LOCATION_ADDRESS, data_2018$LOCATION_ADDRESS), stringsAsFactors = FALSE)
+incidents_City <- data.frame(c(data_2015$CITY, data_2016$CITY, data_2017$CITY, data_2018$CITY), stringsAsFactors = FALSE)
+incidents_State <- data.frame(c(data_2015$STATE, data_2016$STATE, data_2017$STATE, data_2018$STATE), stringsAsFactors = FALSE)
 incidents_Lon <- data.frame(c(data_2015$LONGTITUDE, data_2016$LONGTITUDE, data_2017$LONGITUDE,
-                              data_2018$LONGITUDE))
+                              data_2018$LONGITUDE), stringsAsFactors = FALSE)
 incidents_Lat <- data.frame(c(data_2015$LATITUDE, data_2016$LATITUDE, data_2017$LATITUDE, 
-                              data_2018$LATITUDE))
+                              data_2018$LATITUDE), stringsAsFactors = FALSE)
 incidents_Number <- data.frame(c(data_2015$INCIDENT_NUMBER, data_2016$INCIDENT_NUMBER, 
-                                 data_2017$INCIDENT_NUMBER, data_2018$INCIDENT_NUMBER))
+                                 data_2017$INCIDENT_NUMBER, data_2018$INCIDENT_NUMBER), stringsAsFactors = FALSE)
 
-total_incidents <- cbind.data.frame(incidents_ymd, incidents_month, incidents_wdays, 
+total_incidents <- data.frame(cbind(incidents_ymd, incidents_month, incidents_wdays, 
                                     incidents_District, incidents_Address, incidents_City, incidents_State, 
                                     incidents_Lon, incidents_Lat,
-                                    incidents_Number, incidents_Description)
+                                    incidents_Number, incidents_Description), stringsAsFactors = FALSE)
 colnames(total_incidents) <- c("incidents_ymd", "incidents_month", "incidents_wdays", 
                                "incidents_District", "incidents_Address", "incidents_City", "incidents_State", 
                                "incidents_Lon", "incidents_Lat",
@@ -290,38 +298,17 @@ for (i in 1 : length(total_incidents$incidents_Description)) {
   }
 }
 total_crimes <- total_incidents[total_incidents$incidents_Description != "HOMICIDE",]
-
+tmp_ttl <- total_incidents
 
 ####################
 ####################
-tmp_ttl <- read.table("/Users/mali/Documents/myGit/LRCrimeStudy/data/Crime_records_Of_LR_2015-2018.csv", head=TRUE, sep=",", fill=TRUE, stringsAsFactors=F)
+tmp_ttl <- read.table("/Users/mali/Documents/myGit/LRCrimeStudy/data/Crime_records_Of_LR_2015-2018_v2.csv", head=TRUE, sep=",", fill=TRUE, stringsAsFactors=F)
+
+tmp_ttl <- tmp_ttl[tmp_ttl$incidents_Description != "HOMICIDE",]
 tmp_ttl$incidents_wdays
-tmp_ttl$incidents_wdays <- tmp_tmp$incidents_wdays
-for (i in 1 : length(tmp_ttl$incidents_wdays)) {
-  if (grepl("mon", tmp_ttl$incidents_wdays[i], ignore.case = TRUE)) {
-    tmp_ttl$incidents_wdays[i] <- "MONDAY"
-  }
-  if (grepl("tue", tmp_ttl$incidents_wdays[i], ignore.case = TRUE)) {
-    tmp_ttl$incidents_wdays[i] <- "TUESDAY"
-  }
-  if (grepl("wed", tmp_ttl$incidents_wdays[i], ignore.case = TRUE)) {
-    tmp_ttl$incidents_wdays[i] <- "WEDNESDAY"
-  }
-  if (grepl("thu", tmp_ttl$incidents_wdays[i], ignore.case = TRUE)) {
-    tmp_ttl$incidents_wdays[i] <- "THURSDAY"
-  }
-  if (grepl("fri", tmp_ttl$incidents_wdays[i], ignore.case = TRUE)) {
-    tmp_ttl$incidents_wdays[i] <- "FRIDAY"
-  }
-  if (grepl("sat", tmp_ttl$incidents_wdays[i], ignore.case = TRUE)) {
-    tmp_ttl$incidents_wdays[i] <- "SATURDAY"
-  }
-  if (grepl("sun", tmp_ttl$incidents_wdays[i], ignore.case = TRUE)) {
-    tmp_ttl$incidents_wdays[i] <- "SUNDAY"
-  }
-}
-tmp_ttl$incidents_wdays <- factor(tmp_ttl$incidents_wdays, levels = c("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", 
-                                  "FRIDAY", "SATURDAY", "SUNDAY"))
+
+tmp_ttl$incidents_wdays <- factor(tmp_ttl$incidents_wdays, labels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday","Friday", "Monday", "Saturday", "Sunday", 
+                                                                      "Thursday", "Tuesday", "Wednesday"))
 for (i in 1 : length(tmp_ttl$incidents_month)) {
   print(tmp_ttl$incidents_month[i])
   if (tmp_ttl$incidents_month[i] == "1" & !is.na(tmp_ttl$incidents_month[i])) {
@@ -404,7 +391,7 @@ for (i in 1 : length(tmp_ttl$incidents_month)) {
     tmp_ttl$incidents_month[i] <- "DEC"
   }
 }
-tmp_ttl$incidents_month <- factor(tmp_ttl$incidents_month, levels = c("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL",
+tmp_ttl$incidents_month <- factor(tmp_ttl$incidents_month, labels = c("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL",
                                            "AUG", "SEP", "OCT", "NOV", "DEC"))
 class(tmp_ttl$incidents_wdays)
 tmp_ttl$year <- year(tmp_ttl$incidents_ymd)
@@ -431,7 +418,7 @@ tmp_ttl$X.3 <- NULL
 tmp_ttl$X.2 <- NULL
 tmp_ttl$X.1 <- NULL
 tmp_ttl$X <- NULL
-#write.csv(tmp_ttl, "/Users/mali/Documents/myGit/LRCrimeStudy/data/Crime_records_Of_LR_2015-2018.csv")
+write.csv(tmp_ttl, "/Users/mali/Documents/myGit/LRCrimeStudy/data/Crime_records_Of_LR_2015-2018_v3.csv")
 
 ########################################################
 ########################################################
