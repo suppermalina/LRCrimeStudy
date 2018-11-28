@@ -9,6 +9,9 @@ library (psych)
 library(reshape2)
 library(Hmisc)
 library(corrplot)
+library(factoextra)
+library(tidyr)
+library(data.table)
 #Loading data
 # This script aims to study the crimes happened in LR.
 # Data are downloaded from the police department of LR. 
@@ -300,22 +303,95 @@ corrplot.mixed(cor(combination_infor_2016[, -c(1, 6, 7)]), order="hclust", tl.co
 corrplot.mixed(cor(combination_information[, -c(1, 6, 7)]), order="hclust", tl.col="black")
 
 ######################
+cluster_data <- data.frame(cbind(total_incidents$incidents_District, total_incidents$incidents_Description), stringsAsFactors = FALSE)
+cluster_data <- na.omit(cluster_data)
+names(cluster_data) <- c("district", "description")
+cluster_data <- ddply(cluster_data, c("district", "description"), summarise, N = length(description))
+#cluster_data$N <- cluster_data$N / 100000
+cluster_data <- na.omit(cluster_data)
+cluster_data <- data.frame(district = cluster_data$district, description = cluster_data$description, 
+                           counts = as.numeric(cluster_data$N), stringsAsFactors = TRUE)
+trans_1 <- as.data.frame(cluster_data %>% group_by(district)  %>% nest(-description))
+trans_1$data
+trans_2 <- as.data.frame.Date(trans_1$data)
+
+names(trans_2) <- c("dat")
+trans_3 <- separate(trans_2, dat, as.character(levels(cluster_data$description)), sep = ",")
+for (i in 1 : length(trans_3[, 1])) {
+  trans_3[, 1][i] <- gsub("list.*.c\\(", "", trans_3[, 1][i])
+  if (grepl("\\)", trans_3[, 1][i])) {
+    trans_3[, 1][i] <- gsub("list.*.[[:space:]]", "", trans_3[, 1][i])
+    trans_3[, 1][i] <- gsub("\\)", "", trans_3[, 1][i])
+  }
+  print(trans_3[, 1][i])
+}
+row.names(trans_3) <- as.character(levels(cluster_data$district))
+trans_final <- trans_3
+trans_final[is.na(trans_final)] <- "0"
+dis <- dist(trans_final)
+fviz_dist(dis, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+cluster1 <- hclust(dist(trans_final), method = "single")
+plot(cluster1, hang = -1)
+
+set.seed(321)
+km_dt <- trans_final
+for (i in 1 : length(km_dt)) {
+  km_dt[, i] <- as.numeric(km_dt[, i])
+}
+km_dt[is.na(km_dt)] <- 0
+km <- kmeans(km_dt, 4, nstart = 25)
+km
+fviz_cluster(km, data = scale(km_dt),
+             palette = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"),
+             ggtheme = theme_minimal(),
+             main = "Partitioning Clustering Plot"
+)
+######################
+#merging this data set with temp, and, let's see the correlation between temp
+#location and crime counts
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+######################
+
+#we have to re-label all descriptions. currently we have 11 descriptions.
+#however, if we use all these 11 types to do machine learning, we will fall into
+#the trap of overfit. So, we re-classfied all crimes into two types:
+#property, violent
+#property break down into breaking in, theft, etc
+#violent includes rape, mudur, etc.
+detail_types <- levels(as.factor(total_incidents$incidents_Description))
+proper_list <- c("ALL OTHER LARCENY", "BREAK IN", "BURGLARY", "BURGLARY", "THEFT")
+violent_list <- c("ASSAULT", "DISCHARGE  A FIREARM FROM A VEHICLE", "MURDER & NONNEGLIGENT MANSLAUGHTER", 
+                  "RAPE", "TERR", "BATTERY", "EXPOSING ANOTHER PERS", "ROBBERY")
+for (i in 1 : length(total_incidents$incidents_Description)) {
+  if (total_incidents$incidents_Description[i] %in% proper_list) {
+    total_incidents$incidents_Description[i] <- "PROPERTY"
+  } else if (total_incidents$incidents_Description[i] %in% violent_list) {
+    total_incidents$incidents_Description[i] <- "VIOLENT"
+  } else {
+    total_incidents <- total_incidents[-i, ]
+  }
+}
 daily_geom_crime <- data.frame(cbind(total_incidents$incidents_ymd, total_incidents$year, total_incidents$incidents_month, 
                                      total_incidents$incidents_Lon, total_incidents$incidents_Lat, total_incidents$incidents_District, 
-                                     total_incidents$incidents_Number), stringsAsFactors = FALSE)
-names(daily_geom_crime) <- c("ymd", "year", "month", "lon", "lat", "district", "number")
-#make lon and lot more comparable
-#x = cos(lat) * cos(lon)
-#y = cos(lat) * sin(lon)
-daily_geom_crime$x <- cos(as.numeric(daily_geom_crime$lat)) * cos(as.numeric(daily_geom_crime$lon))
-daily_geom_crime$y <- cos(as.numeric(daily_geom_crime$lat)) * sin(as.numeric(daily_geom_crime$lon))
-daily_geom_crime$point <- sqrt(as.numeric(daily_geom_crime$x) ^ 2 + as.numeric(daily_geom_crime$y) ^ 2)
-daily_geom_crime <- aggregate(daily_geom_crime$number, by = list(daily_geom_crime$ymd, daily_geom_crime$district,
-                                                                 daily_geom_crime$point), FUN = length)
-names(daily_geom_crime) <- c("date", "district", "point", "count")
-daily_geom_crime$date <- as.Date(daily_geom_crime$date)
-daily_geom_crime_climate <- merge(daily_geom_crime, daily_temp, by = "date")
+                                     total_incidents$incidents_Description), stringsAsFactors = FALSE)
+names(daily_geom_crime) <- c("ymd", "year", "month", "lon", "lat", "district", "description")
 
-
-
+set.seed(54321)
+daily_geom_crime[is.na(daily_geom_crime)] <- 0
+clusters <- kmeans(daily_geom_crime[, c(4 : 6)], 3)
 
