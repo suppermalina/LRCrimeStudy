@@ -12,6 +12,9 @@ library(corrplot)
 library(factoextra)
 library(tidyr)
 library(data.table)
+library(DAAG)
+library(rpart)
+library(C50)
 #Loading data
 # This script aims to study the crimes happened in LR.
 # Data are downloaded from the police department of LR. 
@@ -38,12 +41,13 @@ str(incidents)
 
 incidents$INCIDENT_DATE <- gsub("\\/", "\\-", incidents$INCIDENT_DATE)
 incidents$ymd <- mdy_hms(incidents$INCIDENT_DATE)
-incidents$month <- month(incidents$ymd, label = TRUE)
+incidents$month <- month(incidents$ymd)
 incidents$year <- year(incidents$ymd)
-incidents$wday <- wday(incidents$ymd, label = TRUE)
+incidents$wday <- wday(incidents$ymd)
 incidents$hour <- hour(incidents$ymd)
-
-
+hour_wday <- data.frame(cbind(incidents$hour, incidents$wday, incidents$OFFENSE_CODE), stringsAsFactors = FALSE)
+names(hour_wday) <- c("hour", "wday", "code")
+hour_wday$wday <- factor(hour_wday$wday, labels = c("MON", "TUE", "WED", "THR", "FRI", "SAT", "SUN"))
 #This dataframe contains all crime records from 2015-2018
 total_incidents <- read.table("/Users/mali/Documents/myGit/LRCrimeStudy/data/Crime_records_Of_LR_2015-2018_v3.csv", head=TRUE, sep=",", fill=TRUE, stringsAsFactors=F)
 
@@ -79,7 +83,7 @@ pie + geom_bar(width = 1, stat = "identity") +
 col1 = "#FEFEFE" 
 col2 = "#540404"
 
-weekdayHour <- ddply(incidents, c("hour", "wday"), summarise, N = length(ymd))
+weekdayHour <- ddply(hour_wday, c("hour", "wday"), summarise, N = length(code))
 weekdayHour$wday <- factor(weekdayHour$wday, levels=rev(levels(weekdayHour$wday)))
 
 #creating the heatmap
@@ -303,66 +307,62 @@ corrplot.mixed(cor(combination_infor_2016[, -c(1, 6, 7)]), order="hclust", tl.co
 corrplot.mixed(cor(combination_information[, -c(1, 6, 7)]), order="hclust", tl.col="black")
 
 ######################
-cluster_data <- data.frame(cbind(total_incidents$incidents_District, total_incidents$incidents_Description), stringsAsFactors = FALSE)
-cluster_data <- na.omit(cluster_data)
-names(cluster_data) <- c("district", "description")
-cluster_data <- ddply(cluster_data, c("district", "description"), summarise, N = length(description))
-#cluster_data$N <- cluster_data$N / 100000
-cluster_data <- na.omit(cluster_data)
-cluster_data <- data.frame(district = cluster_data$district, description = cluster_data$description, 
-                           counts = as.numeric(cluster_data$N), stringsAsFactors = TRUE)
-trans_1 <- as.data.frame(cluster_data %>% group_by(district)  %>% nest(-description))
-trans_1$data
-trans_2 <- as.data.frame.Date(trans_1$data)
+#correlation between month, temp and crimes records
+month_temp <- combination_information[, -c(1, 3, 4)]
+month_temp_total <- combination_information[, -c(1, 3, 4, 6)]
+month_temp$month
+length_of_each_month <- aggregate(month_temp$month, by = list(month_temp$year, month_temp$month), FUN = length)
+month_temp_sec <- aggregate(month_temp$daily_avg_temp, by = list(month_temp$month, month_temp$year), FUN = sum)
+names(length_of_each_month) <- c("year", "month", "days")
+names(month_temp_sec) <- c("month", "year", "total")
+temp_sec <- merge(length_of_each_month, month_temp_sec, by = c("year", "month"))
+temp_sec$monthly_avg_temp <- temp_sec$total / temp_sec$days
+temp_sec <- temp_sec[, -c(3, 4)]
 
-names(trans_2) <- c("dat")
-trans_3 <- separate(trans_2, dat, as.character(levels(cluster_data$description)), sep = ",")
-for (i in 1 : length(trans_3[, 1])) {
-  trans_3[, 1][i] <- gsub("list.*.c\\(", "", trans_3[, 1][i])
-  if (grepl("\\)", trans_3[, 1][i])) {
-    trans_3[, 1][i] <- gsub("list.*.[[:space:]]", "", trans_3[, 1][i])
-    trans_3[, 1][i] <- gsub("\\)", "", trans_3[, 1][i])
-  }
-  print(trans_3[, 1][i])
-}
-row.names(trans_3) <- as.character(levels(cluster_data$district))
-trans_final <- trans_3
-trans_final[is.na(trans_final)] <- "0"
-dis <- dist(trans_final)
-fviz_dist(dis, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+month_temp_crim_sec <- aggregate(month_temp$daily_total, by = list(month_temp$year, month_temp$month), FUN = sum)
+names(month_temp_crim_sec) <- c("year", "month", "monthly_total")
 
-cluster1 <- hclust(dist(trans_final), method = "single")
-plot(cluster1, hang = -1)
+month_temp_crime <- merge(month_temp_crim_sec, temp_sec, by = c("year", "month"))
+month_temp_crime$year <- factor(month_temp_crime$year)
+month_temp_crime$month <- factor(as.numeric(month_temp_crime$month), order = c(1 : 12), 
+                         labels = c("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"))
 
-set.seed(321)
-km_dt <- trans_final
-for (i in 1 : length(km_dt)) {
-  km_dt[, i] <- as.numeric(km_dt[, i])
-}
-km_dt[is.na(km_dt)] <- 0
-km <- kmeans(km_dt, 4, nstart = 25)
-km
-fviz_cluster(km, data = scale(km_dt),
-             palette = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"),
-             ggtheme = theme_minimal(),
-             main = "Partitioning Clustering Plot"
-)
-######################
-#merging this data set with temp, and, let's see the correlation between temp
-#location and crime counts
+month_temp_crime_2015 <- month_temp_crime[month_temp_crime$year == "2015", ]
+month_temp_crime_2016 <- month_temp_crime[month_temp_crime$year == "2016", ]
+month_temp_crime_2017 <- month_temp_crime[month_temp_crime$year == "2017", ]
+month_temp_crime_2018 <- month_temp_crime[month_temp_crime$year == "2018", ]
+
+corrplot.mixed(cor(month_temp_crime_2015[, -c(1, 2)]), order="hclust", tl.col="black")
+corrplot.mixed(cor(month_temp_crime_2016[, -c(1, 2)]), order="hclust", tl.col="black")
+corrplot.mixed(cor(month_temp_crime_2017[, -c(1, 2)]), order="hclust", tl.col="black")
+corrplot.mixed(cor(month_temp_crime_2018[, -c(1, 2)]), order="hclust", tl.col="black")
+##
+
+month_temp_total_tmp <- aggregate(month_temp_total$daily_avg_temp, by = list(month_temp_total$month), FUN = mean)
+names(month_temp_total_tmp) <- c("month", "monthly_avg_tmp")
+month_temp_total_crime <- aggregate(month_temp_total$daily_total, by = list(month_temp_total$month), FUN = sum)
+names(month_temp_total_crime) <- c("month", "monthly_total")
+total_month_crime <- merge(month_temp_total_tmp, month_temp_total_crime, by = c("month"))
+corrplot.mixed(cor(total_month_crime[, c(2:3)]), order="hclust", tl.col="black")
 
 
+#####################
+#linear regression
+#base on monthly data
+train <- data.frame(rbind(month_temp_crime_2015, month_temp_crime_2016, month_temp_crime_2017), stringsAsFactors = FALSE)
+test <- month_temp_crime_2018
+model = lm(formula = monthly_total ~ monthly_avg_temp,  data=train)
+summary(model)
+par(mfrow=c(2,2))
+plot(model)
 
-
-
-
-
-
-
-
-
-
-
+prediction <- predict(model, test)
+#####
+#k fold
+myData <- data.frame(rbind(month_temp_crime_2015[3:4], month_temp_crime_2016[3:4], 
+                           month_temp_crime_2017[3:4], month_temp_crime_2018[3:4]), stringsAsFactors = FALSE)
+names(myData) <- c("y", "x")
+cv.lm(myData, fit, m=10) # 10 fold cross-validation
 
 
 ######################
@@ -374,24 +374,37 @@ fviz_cluster(km, data = scale(km_dt),
 #property break down into breaking in, theft, etc
 #violent includes rape, mudur, etc.
 detail_types <- levels(as.factor(total_incidents$incidents_Description))
-proper_list <- c("ALL OTHER LARCENY", "BREAK IN", "BURGLARY", "BURGLARY", "THEFT")
-violent_list <- c("ASSAULT", "DISCHARGE  A FIREARM FROM A VEHICLE", "MURDER & NONNEGLIGENT MANSLAUGHTER", 
-                  "RAPE", "TERR", "BATTERY", "EXPOSING ANOTHER PERS", "ROBBERY")
+proper_list <- c("ALL OTHER LARCENY", "BREAK IN", "BURGLARY", "THEFT", "PROPERTY")
+violent_list <- c("ASSAULT", "RAPE", "TERR", "BATTERY", "ROBBERY", "VIOLENT")
 for (i in 1 : length(total_incidents$incidents_Description)) {
   if (total_incidents$incidents_Description[i] %in% proper_list) {
+    print("PROPERTY")
+    print(total_incidents$incidents_Description[i])
     total_incidents$incidents_Description[i] <- "PROPERTY"
   } else if (total_incidents$incidents_Description[i] %in% violent_list) {
+    print("VIO")
+    print(total_incidents$incidents_Description[i])
     total_incidents$incidents_Description[i] <- "VIOLENT"
   } else {
+    print("RM")
     total_incidents <- total_incidents[-i, ]
   }
 }
-daily_geom_crime <- data.frame(cbind(total_incidents$incidents_ymd, total_incidents$year, total_incidents$incidents_month, 
-                                     total_incidents$incidents_Lon, total_incidents$incidents_Lat, total_incidents$incidents_District, 
-                                     total_incidents$incidents_Description), stringsAsFactors = FALSE)
-names(daily_geom_crime) <- c("ymd", "year", "month", "lon", "lat", "district", "description")
+#write.csv(total_incidents, "/Users/mali/Documents/myGit/LRCrimeStudy/data/relabel_and_classfied_crime_Of_LR_2015-2018.csv")
+total <- read.table("/Users/mali/Documents/myGit/LRCrimeStudy/data/relabel_and_classfied_crime_Of_LR_2015-2018.csv", head=TRUE, sep=",", fill=TRUE, stringsAsFactors=F)
 
-set.seed(54321)
-daily_geom_crime[is.na(daily_geom_crime)] <- 0
-clusters <- kmeans(daily_geom_crime[, c(4 : 6)], 3)
-
+class(daily_geom_crime$month)
+factor(total$incidents_Description)
+daily_geom_crime <- data.frame(cbind(total$year, total$incidents_month, total$incidents_wday, 
+                                     total$incidents_District, total$incidents_Description), stringsAsFactors = FALSE)
+class(month_temp$month)
+month_temp$month <- data.frame(factor(month_temp$month, levels = c(1:12), labels = c("JAN", "FEB", "MAR", "APR", 
+                                                                               "MAY", "JUN", "JUL", "AUG", 
+                                                                               "SEP", "OCT", "NOV", "DEC")), stringsAsFactors = FALSE)
+names(daily_geom_crime) <- c("year", "month", "wday", "district", "description")
+names(month_temp) <- c("daily_total", "daily_avg_temp", "year", "month")
+tree_data <- merge(month_temp, daily_geom_crime, by = c("year", "month"))
+tree_data <- tree_data[, -c(1, 3)]
+factor(tree_data$description)
+tree_data$description <- factor(tree_data$description, levels = c(1, 2), labels = c("no", "yes"))
+table(tree_data$description)
